@@ -1,0 +1,2 @@
+include README.rst
+include netflix_browser/layout.glade
