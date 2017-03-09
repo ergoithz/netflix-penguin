@@ -9,7 +9,7 @@ import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('WebKit2', '4.0')
 
-from gi.repository import Gtk, Gio, WebKit2 # noqa
+from gi.repository import Gtk, Gdk, Gio, WebKit2 # noqa
 
 
 class Layout(collections.defaultdict):
@@ -96,6 +96,7 @@ class Application(Gtk.Application):
         webview.connect('load-changed', self.on_load_change)
         webview.connect('notify::title', self.on_title_change)
 
+        self.layout.hover_eventbox
         self.layout.webview = webview
         self.layout.main.pack_start(webview, True, True, 0)
 
@@ -109,13 +110,42 @@ class Application(Gtk.Application):
         signal_handlers = {
             'back_button_click': lambda b: self.layout.webview.go_back(),
             'forw_button_click': lambda b: self.layout.webview.go_forward(),
-            'reload_button_clicked': lambda b: self.layout.webview.reload(),
+            'reload_button_click': lambda b: self.layout.webview.reload(),
+            'fullscreen_button_click': self.on_toggle_fullscreen,
+            'hover_headerbar_leave': self.on_hover_headerbar_leave,
+            'window_state': self.on_window_state,
+            'window_key_release': self.on_window_key,
         }
         self.layout = Layout(
             os.path.join(meta.__basedir__, 'layout.glade'),
             signal_handlers
             )
         self.init_webview()
+
+    def on_toggle_fullscreen(self, source):
+        if self.fullscreen:
+            self.layout.window.unfullscreen()
+        else:
+            self.layout.window.fullscreen()
+        self.layout.hover_headerbar.set_property('visible', False)
+
+    def on_window_state(self, source, event):
+        self.fullscreen = Gdk.WindowState.FULLSCREEN & event.new_window_state
+
+        if self.fullscreen:
+            # TODO: fullscreen message
+            pass
+
+    def on_window_key(self, source, event):
+        if self.fullscreen:
+            if event.keyval == Gdk.KEY_Escape:
+                self.layout.window.unfullscreen()
+            elif event.keyval == Gdk.KEY_Alt_L:
+                value = self.layout.hover_headerbar.get_property('visible')
+                self.layout.hover_headerbar.set_property('visible', not value)
+
+    def on_hover_headerbar_leave(self):
+        self.layout.hover_headerbar.set_property('visible', False)
 
     def on_plugins(self, source, res):
         pipelight = [
@@ -129,33 +159,37 @@ class Application(Gtk.Application):
     def on_load_change(self, webview, event):
         if event == WebKit2.LoadEvent.STARTED:
             self.layout.reload_button.set_property('sensitive', False)
+            self.layout.hover_reload_button.set_property('sensitive', False)
         elif event == WebKit2.LoadEvent.COMMITTED:
-            self.layout.back_button.set_property(
-                'sensitive', self.layout.webview.can_go_back())
-            self.layout.forw_button.set_property(
-                'sensitive', self.layout.webview.can_go_forward())
+            cgb = self.layout.webview.can_go_back()
+            self.layout.back_button.set_property('sensitive', cgb)
+            self.layout.hover_back_button.set_property('sensitive', cgb)
+            cgf = self.layout.webview.can_go_forward()
+            self.layout.forw_button.set_property('sensitive', cgf)
+            self.layout.hover_forw_button.set_property('sensitive', cgf)
         elif event == WebKit2.LoadEvent.REDIRECTED:
             pass
         elif event == WebKit2.LoadEvent.FINISHED:
             self.layout.reload_button.set_property('sensitive', True)
+            self.layout.hover_reload_button.set_property('sensitive', True)
 
     def on_title_change(self, webview, param):
         title = webview.get_title()
-        self.layout.headerbar.set_subtitle(
-            None if title == self.layout.headerbar.get_title() else title
-        )
+        title = None if title == self.layout.headerbar.get_title() else title
+        self.layout.headerbar.set_subtitle(title)
+        self.layout.hover_headerbar.set_subtitle(title)
 
     def do_startup(self):
         Gtk.Application.do_startup(self)
-        # super(Application, self).do_startup()
+        # NOTE: super(Application, self).do_startup() segfaults
 
         # action = Gio.SimpleAction.new('about', None)
         # action.connect('activate', self.on_about)
         # self.add_action(action)
 
-        action = Gio.SimpleAction.new('quit', None)
-        action.connect('activate', self.on_quit)
-        self.add_action(action)
+        # action = Gio.SimpleAction.new('quit', None)
+        # action.connect('activate', self.on_quit)
+        # self.add_action(action)
 
         # builder = Gtk.Builder.new_from_string(MENU_XML, -1)
         # self.set_app_menu(self.layout.get_object('AppMenu'))

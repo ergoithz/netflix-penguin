@@ -3,13 +3,133 @@
 <interface>
   <requires lib="gtk+" version="3.20"/>
   <object class="GtkApplicationWindow" id="window">
-    <property name="can_focus">False</property>
+    <property name="can_focus">True</property>
     <property name="title" translatable="yes">Netflix</property>
+    <property name="window_position">center</property>
+    <property name="default_width">1280</property>
+    <property name="default_height">720</property>
+    <property name="gravity">center</property>
+    <signal name="key-release-event" handler="window_key_release" swapped="no"/>
+    <signal name="window-state-event" handler="window_state" swapped="no"/>
     <child>
       <object class="GtkBox" id="main">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkRevealer">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="transition_type">none</property>
+            <property name="reveal_child">True</property>
+            <child>
+              <object class="GtkHeaderBar" id="hover_headerbar">
+                <property name="can_focus">False</property>
+                <property name="title">Netflix</property>
+                <property name="has_subtitle">False</property>
+                <property name="spacing">5</property>
+                <signal name="leave-notify-event" handler="hover_headerbar_leave" swapped="no"/>
+                <child>
+                  <object class="GtkBox">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <child>
+                      <object class="GtkButton" id="hover_back_button">
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">True</property>
+                        <property name="tooltip_text" translatable="yes">Back</property>
+                        <property name="always_show_image">True</property>
+                        <signal name="clicked" handler="back_button_click" swapped="no"/>
+                        <child>
+                          <object class="GtkImage">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="stock">gtk-go-back</property>
+                            <property name="icon_size">3</property>
+                          </object>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="hover_forw_button">
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">True</property>
+                        <property name="tooltip_text" translatable="yes">Forward</property>
+                        <signal name="clicked" handler="forw_button_click" swapped="no"/>
+                        <child>
+                          <object class="GtkImage">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="stock">gtk-go-forward</property>
+                            <property name="icon_size">3</property>
+                          </object>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="hover_reload_button">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                    <property name="tooltip_text" translatable="yes">Reload</property>
+                    <signal name="clicked" handler="reload_button_click" swapped="no"/>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="stock">gtk-refresh</property>
+                        <property name="icon_size">3</property>
+                      </object>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkButton" id="hover_fullscreen_button">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                    <property name="tooltip_text" translatable="yes">Toggle fullscreen</property>
+                    <signal name="clicked" handler="fullscreen_button_click" swapped="no"/>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="stock">gtk-fullscreen</property>
+                        <property name="icon_size">3</property>
+                      </object>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="pack_type">end</property>
+                    <property name="position">2</property>
+                  </packing>
+                </child>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
         <child>
           <placeholder/>
         </child>
@@ -104,7 +224,7 @@ See &lt;a href="https://github.com/ergoithz/netflix-browser/wiki/Troubleshoot#si
             <property name="expand">False</property>
             <property name="fill">True</property>
             <property name="pack_type">end</property>
-            <property name="position">1</property>
+            <property name="position">3</property>
           </packing>
         </child>
       </object>
@@ -115,6 +235,7 @@ See &lt;a href="https://github.com/ergoithz/netflix-browser/wiki/Troubleshoot#si
         <property name="can_focus">False</property>
         <property name="title">Netflix</property>
         <property name="has_subtitle">False</property>
+        <property name="spacing">5</property>
         <property name="show_close_button">True</property>
         <child>
           <object class="GtkBox">
@@ -125,6 +246,7 @@ See &lt;a href="https://github.com/ergoithz/netflix-browser/wiki/Troubleshoot#si
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="tooltip_text" translatable="yes">Back</property>
                 <property name="always_show_image">True</property>
                 <signal name="clicked" handler="back_button_click" swapped="no"/>
                 <child>
@@ -147,6 +269,7 @@ See &lt;a href="https://github.com/ergoithz/netflix-browser/wiki/Troubleshoot#si
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="tooltip_text" translatable="yes">Forward</property>
                 <signal name="clicked" handler="forw_button_click" swapped="no"/>
                 <child>
                   <object class="GtkImage">
@@ -170,7 +293,8 @@ See &lt;a href="https://github.com/ergoithz/netflix-browser/wiki/Troubleshoot#si
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
-            <signal name="clicked" handler="reload_button_clicked" swapped="no"/>
+            <property name="tooltip_text" translatable="yes">Reload</property>
+            <signal name="clicked" handler="reload_button_click" swapped="no"/>
             <child>
               <object class="GtkImage">
                 <property name="visible">True</property>
@@ -182,6 +306,27 @@ See &lt;a href="https://github.com/ergoithz/netflix-browser/wiki/Troubleshoot#si
           </object>
           <packing>
             <property name="position">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="fullscreen_button">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="tooltip_text" translatable="yes">Toggle fullscreen</property>
+            <signal name="clicked" handler="fullscreen_button_click" swapped="no"/>
+            <child>
+              <object class="GtkImage">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="stock">gtk-fullscreen</property>
+                <property name="icon_size">3</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="pack_type">end</property>
+            <property name="position">2</property>
           </packing>
         </child>
       </object>
