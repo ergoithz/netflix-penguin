@@ -1,7 +1,7 @@
 netflix-browser
 ===============
 
-Simple web browser for Netflix.
+Site-specific browser for Netflix.
 
 This app requires a Pipelight Silverlight installation.
 
@@ -16,7 +16,17 @@ As last resort, this webkit-based browser were developed, including those hacks 
 Requirements
 ------------
 
-* Python-gobject
+* PyGObject (python-gobject)
 * Gtk3
 * Gtk WebKit2 (webkit2gtk)
 * Pipelight
+
+Virtualenv/venv considerations
+------------------------------
+
+This app, because of PyGobject, will only install on virtualenvs created with **--system-site-packages** flag, ie:
+
+.. code-block:: sh
+
+  python -m venv env --system-site-packages
+  env/bin/pip install netflix-browser

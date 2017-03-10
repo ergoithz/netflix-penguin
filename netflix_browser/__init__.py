@@ -1,7 +1,9 @@
 
 import re
+import os
 import os.path
 import collections
+import appdirs
 
 from . import __meta__ as meta
 
@@ -9,14 +11,16 @@ import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('WebKit2', '4.0')
 
-from gi.repository import Gtk, Gdk, Gio, WebKit2 # noqa
+from gi.repository import Gtk, Gdk, Gio, WebKit2, GObject # noqa
 
 
 class Layout(collections.defaultdict):
-    def __init__(self, path, signal_handlers):
+    def __init__(self, path):
         self.builder = Gtk.Builder.new_from_file(path)
-        self.builder.connect_signals(signal_handlers)
         super(Layout, self).__init__()
+
+    def connect_signals(self, signals):
+        self.builder.connect_signals(signals)
 
     def __missing__(self, key):
         return self.builder.get_object(key)
@@ -29,7 +33,14 @@ class Layout(collections.defaultdict):
 
 
 class Application(Gtk.Application):
+    last_valid_uri = None
+    appid = 'org.%s.%s' % (meta.__org__, meta.__app__)
+    dirs = appdirs.AppDirs(meta.__app__, meta.__org__, meta.__version__)
     re_pipelight_so = re.compile(r'.*/libpipelight-silverlight[^/]+\.so$')
+    re_accepted_uri = re.compile(
+        r'^https?://www.netflix.com/'
+        r'(browse|watch|Login|[a-z]{2}/Login)(|\?.*|/.*)$'
+        )
     userAgent = (
         'Mozilla/5.0 (Windows NT 6.3; rv:36.0) '
         'Gecko/20100101 Firefox/36.04'
@@ -79,6 +90,19 @@ class Application(Gtk.Application):
             'platform': platform
         }
 
+    @classmethod
+    def connect(cls, widget, *args, **kwargs):
+        signals = dict(*args, **kwargs)
+        if hasattr(widget, 'connect_signals'):
+            return widget.connect_signals(signals)
+        for name, callback in signals.items():
+            widget.connect(name, callback)
+        return signals
+
+    def init_config(self):
+        if not os.path.isdir(self.dirs.user_cache_dir):
+            os.makedirs(self.dirs.user_cache_dir)
+
     def init_webview(self):
         manager = WebKit2.UserContentManager()
         manager.add_script(WebKit2.UserScript(
@@ -89,13 +113,23 @@ class Application(Gtk.Application):
         webview = WebKit2.WebView.new_with_user_content_manager(manager)
         context = webview.get_context()
         context.get_plugins(None, self.on_plugins)
+        cookies = context.get_cookie_manager()
+        cookies.set_persistent_storage(
+            os.path.join(self.dirs.user_cache_dir, 'storage'),
+            WebKit2.CookiePersistentStorage.SQLITE
+            )
         settings = webview.get_settings()
         settings.set_user_agent(self.userAgent)
+        settings.set_enable_java(False)
+        settings.set_enable_plugins(True)
+        settings.set_enable_fullscreen(True)
+        settings.set_enable_page_cache(True)
         webview.set_settings(settings)
         webview.set_property('visible', True)
-        webview.connect('load-changed', self.on_load_change)
-        webview.connect('notify::title', self.on_title_change)
-
+        self.connect(webview, {
+            'load-changed': self.on_load_change,
+            'notify::title': self.on_title_change
+            })
         self.layout.hover_eventbox
         self.layout.webview = webview
         self.layout.main.pack_start(webview, True, True, 0)
@@ -103,11 +137,12 @@ class Application(Gtk.Application):
     def __init__(self, *args, **kwargs):
         super(Application, self).__init__(
             *args,
-            application_id="org.example.myapp",
+            application_id=self.appid,
             flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
             **kwargs
             )
-        signal_handlers = {
+        self.layout = Layout(os.path.join(meta.__basedir__, 'layout.glade'))
+        self.connect(self.layout, {
             'back_button_click': lambda b: self.layout.webview.go_back(),
             'forw_button_click': lambda b: self.layout.webview.go_forward(),
             'reload_button_click': lambda b: self.layout.webview.reload(),
@@ -115,11 +150,8 @@ class Application(Gtk.Application):
             'hover_headerbar_leave': self.on_hover_headerbar_leave,
             'window_state': self.on_window_state,
             'window_key_release': self.on_window_key,
-        }
-        self.layout = Layout(
-            os.path.join(meta.__basedir__, 'layout.glade'),
-            signal_handlers
-            )
+            })
+        self.init_config()
         self.init_webview()
 
     def on_toggle_fullscreen(self, source):
@@ -158,6 +190,12 @@ class Application(Gtk.Application):
 
     def on_load_change(self, webview, event):
         if event == WebKit2.LoadEvent.STARTED:
+            uri = webview.get_uri()
+            if not self.re_accepted_uri.match(uri):
+                webview.stop_loading()
+                Gtk.show_uri_on_window(
+                    self.layout.window, uri, Gdk.CURRENT_TIME)
+                return
             self.layout.reload_button.set_property('sensitive', False)
             self.layout.hover_reload_button.set_property('sensitive', False)
         elif event == WebKit2.LoadEvent.COMMITTED:

@@ -23,7 +23,7 @@ except ImportError:
     from distutils.core import setup
 
 sys_path = sys.path[:]
-sys.path[:] = (os.path.abspath('netflix'),)
+sys.path[:] = (os.path.abspath('netflix_browser'),)
 __import__('__meta__')
 sys.path[:] = sys_path
 
@@ -59,26 +59,21 @@ setup(
     long_description=meta_doc,
     classifiers=[
         'Development Status :: 4 - Beta',
-        'License :: OSI Approved :: MIT License',
-        'Operating System :: OS Independent',
-        'Programming Language :: Python',
+        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+        'Operating System :: POSIX',
         'Programming Language :: Python :: 3',
     ],
-    keywords=['web', 'file', 'browser'],
-    packages=[
-        'netflix_browser',
-        ],
+    keywords=['web', 'browser'],
+    packages=['netflix_browser'],
     entry_points={
         'console_scripts': (
             'netflix-browser=netflix_browser.__main__:main'
         )
     },
     package_data={  # ignored by sdist (see MANIFEST.in), used by bdist_wheel
-        'browsepy': [
-            'netflix_browser/layout.glade'
-            ]
+        'netflix_browser': ['layout.glade']
         },
-    install_requires=['python-gobject'],
+    install_requires=['pygobject', 'appdirs'],
     zip_safe=True,
     platforms='any'
 )
