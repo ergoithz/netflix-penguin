@@ -1,10 +1,10 @@
 
 import sys
-import netflix_browser
+import netflix_penguin
 
 
 def main(argv=sys.argv):
-    app = netflix_browser.Application()
+    app = netflix_penguin.Application()
     app.run(argv)
 
 

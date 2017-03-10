@@ -11,10 +11,18 @@ import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('WebKit2', '4.0')
 
-from gi.repository import Gtk, Gdk, Gio, WebKit2, GObject # noqa
+from gi.repository import Gtk, Gdk, Gio, WebKit2, GObject  # noqa
 
 
-class Layout(collections.defaultdict):
+class AttrDefaultDict(collections.defaultdict):
+    def __getattr__(self, name):
+        return self[name]
+
+    def __setattr__(self, name, value):
+        self[name] = value
+
+
+class Layout(AttrDefaultDict):
     def __init__(self, path):
         self.builder = Gtk.Builder.new_from_file(path)
         super(Layout, self).__init__()
@@ -25,12 +33,6 @@ class Layout(collections.defaultdict):
     def __missing__(self, key):
         return self.builder.get_object(key)
 
-    def __getattr__(self, name):
-        return self[name]
-
-    def __setattr__(self, name, value):
-        self[name] = value
-
 
 class Application(Gtk.Application):
     last_valid_uri = None
@@ -38,8 +40,10 @@ class Application(Gtk.Application):
     dirs = appdirs.AppDirs(meta.__app__, meta.__org__, meta.__version__)
     re_pipelight_so = re.compile(r'.*/libpipelight-silverlight[^/]+\.so$')
     re_accepted_uri = re.compile(
-        r'^https?://www.netflix.com/'
-        r'(browse|watch|Login|[a-z]{2}/Login)(|\?.*|/.*)$'
+        r'^https?://www.netflix.com/('
+        r'([a-z]{2}/)?([Ll]og|[Ss]ign)([Ii]n|[Oo]ut)|'
+        r'browse|watch|[Kk]ids|([Mm]anage)?[Pp]rofiles([Gg]ate)?'
+        r')(|\?.*|/.*)$'
         )
     userAgent = (
         'Mozilla/5.0 (Windows NT 6.3; rv:36.0) '
@@ -141,43 +145,51 @@ class Application(Gtk.Application):
             flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
             **kwargs
             )
+        self.options = AttrDefaultDict(lambda: None)
         self.layout = Layout(os.path.join(meta.__basedir__, 'layout.glade'))
+        self.pressed_keys = set()
+        self.fullscreen = False
         self.connect(self.layout, {
             'back_button_click': lambda b: self.layout.webview.go_back(),
             'forw_button_click': lambda b: self.layout.webview.go_forward(),
             'reload_button_click': lambda b: self.layout.webview.reload(),
-            'fullscreen_button_click': self.on_toggle_fullscreen,
-            'hover_headerbar_leave': self.on_hover_headerbar_leave,
+            'fullscreen_button_click': self.on_fullscreen,
+            'unfullscreen_button_click': self.on_unfullscreen,
             'window_state': self.on_window_state,
-            'window_key_release': self.on_window_key,
+            'window_key_press': self.on_window_key_press,
+            'window_key_release': self.on_window_key_release,
             })
         self.init_config()
         self.init_webview()
 
-    def on_toggle_fullscreen(self, source):
-        if self.fullscreen:
-            self.layout.window.unfullscreen()
-        else:
-            self.layout.window.fullscreen()
-        self.layout.hover_headerbar.set_property('visible', False)
+    def on_fullscreen(self, source):
+        self.layout.window.fullscreen()
+
+    def on_unfullscreen(self, source):
+        self.layout.window.unfullscreen()
 
     def on_window_state(self, source, event):
-        self.fullscreen = Gdk.WindowState.FULLSCREEN & event.new_window_state
+        fullscreen = Gdk.WindowState.FULLSCREEN & event.new_window_state
+        if fullscreen != self.fullscreen:
+            self.fullscreen = fullscreen
+            self.layout.hover_revealer.set_property('visible', fullscreen)
+            self.layout.hover_revealer.set_reveal_child(not fullscreen)
 
+    def on_window_key_press(self, source, event):
+        if event.keyval in self.pressed_keys:
+            return
+        self.pressed_keys.add(event.keyval)
         if self.fullscreen:
-            # TODO: fullscreen message
-            pass
-
-    def on_window_key(self, source, event):
-        if self.fullscreen:
-            if event.keyval == Gdk.KEY_Escape:
+            if event.keyval in (Gdk.KEY_Escape, Gdk.KEY_F11):
                 self.layout.window.unfullscreen()
             elif event.keyval == Gdk.KEY_Alt_L:
-                value = self.layout.hover_headerbar.get_property('visible')
-                self.layout.hover_headerbar.set_property('visible', not value)
+                value = self.layout.hover_revealer.get_reveal_child()
+                self.layout.hover_revealer.set_reveal_child(not value)
+        elif event.keyval == Gdk.KEY_F11:
+            self.layout.window.fullscreen()
 
-    def on_hover_headerbar_leave(self):
-        self.layout.hover_headerbar.set_property('visible', False)
+    def on_window_key_release(self, source, event):
+        self.pressed_keys.discard(event.keyval)
 
     def on_plugins(self, source, res):
         pipelight = [
@@ -191,7 +203,10 @@ class Application(Gtk.Application):
     def on_load_change(self, webview, event):
         if event == WebKit2.LoadEvent.STARTED:
             uri = webview.get_uri()
-            if not self.re_accepted_uri.match(uri):
+            if (
+              not self.options.unrestricted and
+              not self.re_accepted_uri.match(uri)
+              ):
                 webview.stop_loading()
                 Gtk.show_uri_on_window(
                     self.layout.window, uri, Gdk.CURRENT_TIME)
@@ -238,10 +253,8 @@ class Application(Gtk.Application):
         self.layout.webview.load_uri('http://www.netflix.com/browse')
 
     def do_command_line(self, command_line):
-        # options = command_line.get_options_dict()
-        # if options.contains('test'):
-        #    print('Test argument recieved')
-
+        options = command_line.get_options_dict()
+        self.options.unrestricted = options.contains('--unrestricted')
         self.activate()
         return 0
 

@@ -1,4 +1,4 @@
-netflix-browser
+Netflix Penguin
 ===============
 
 Site-specific browser for Netflix.
@@ -29,4 +29,4 @@ This app, because of PyGobject, will only install on virtualenvs created with **
 .. code-block:: sh
 
   python -m venv env --system-site-packages
-  env/bin/pip install netflix-browser
+  env/bin/pip install netflix-penguin

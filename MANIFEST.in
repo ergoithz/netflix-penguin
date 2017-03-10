@@ -1,2 +1,2 @@
 include README.rst
-include netflix_browser/layout.glade
+include netflix_penguin/layout.glade
