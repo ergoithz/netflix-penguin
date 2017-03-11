@@ -8,6 +8,7 @@
     <property name="window_position">center</property>
     <property name="default_width">1280</property>
     <property name="default_height">720</property>
+    <property name="icon_name">netflix-penguin</property>
     <property name="gravity">center</property>
     <signal name="key-press-event" handler="window_key_press" after="yes" swapped="no"/>
     <signal name="key-release-event" handler="window_key_release" after="yes" swapped="no"/>
