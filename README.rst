@@ -1,4 +1,4 @@
-.. image:: https://cdn.rawgit.com/ergoithz/netflix-penguin/master/icons/256/netflix-penguin.png
+.. image:: https://cdn.rawgit.com/ergoithz/netflix-penguin/master/icons/128/netflix-penguin.png
    :align: right
 
 Netflix Penguin
