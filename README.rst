@@ -1,3 +1,6 @@
+.. image:: https://cdn.rawgit.com/ergoithz/netflix-penguin/master/icons/256/netflix-penguin.png
+   :align: right
+
 Netflix Penguin
 ===============
 
@@ -20,6 +23,24 @@ Requirements
 * Gtk3
 * Gtk WebKit2 (webkit2gtk)
 * Pipelight
+
+System-wide installation
+------------------------
+
+Official distribution methods are always preferred.
+
+You can install Netflix Penguin system-wide, using pip, and a corresponding menu entry will be created.
+
+.. code-block:: sh
+
+  sudo pip install netflix-penguin
+  sudo gtk-update-icon-cache -f /usr/share/icons/hicolor
+
+And can be uninstalled via:
+
+.. code-block:: sh
+
+  sudo pip uninstall netflix-penguin
 
 Virtualenv/venv considerations
 ------------------------------

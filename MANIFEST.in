@@ -1,2 +1,5 @@
 include README.rst
+include LICENSE
 include netflix_penguin/layout.glade
+recursive-include icons *.png *.svg
+graft freedesktop_setup

@@ -17,10 +17,8 @@ import os
 import os.path
 import sys
 
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
+from setuptools import setup
+from freedesktop_setup import Distribution
 
 meta_module = 'netflix_penguin'
 
@@ -43,17 +41,6 @@ meta_repo = 'https://github.com/%s/%s' % (
 
 with open('README.rst') as f:
     meta_doc = f.read()
-
-extra_requires = []
-
-if not hasattr(os, 'scandir') or 'bdist_wheel' in sys.argv:
-    extra_requires.append('scandir')
-
-for debugger in ('ipdb', 'pudb', 'pdb'):
-    opt = '--debug=%s' % debugger
-    if opt in sys.argv:
-        os.environ['UNITTEST_DEBUG'] = debugger
-        sys.argv.remove(opt)
 
 setup(
     name=meta_app,
@@ -86,7 +73,12 @@ setup(
             'StartupNotify': 'true',
             },
         },
-    package_data={meta_module: ['layout.glade']},
+    package_data={
+        meta_module: [
+            'resources/layout.glade',
+            'resources/%s.svg' % meta_app
+            ]
+        },
     data_files=[(
             'share/icons/hicolor/{0}x{0}/apps'.format(size),
             ['icons/{}/{}.png'.format(size, meta_app)])
@@ -94,8 +86,8 @@ setup(
         ] + [
             ('share/icons/hicolor/scalable/apps', ['icons/%s.svg' % meta_app])
         ],
-    setup_requires=['install_freedesktop'],
     install_requires=['pygobject', 'appdirs'],
-    zip_safe=True,
+    distclass=Distribution,
+    zip_safe=False,
     platforms='any'
     )
