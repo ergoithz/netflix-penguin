@@ -73,12 +73,7 @@ setup(
             'StartupNotify': 'true',
             },
         },
-    package_data={
-        meta_module: [
-            'resources/layout.glade',
-            'resources/%s.svg' % meta_app
-            ]
-        },
+    package_data={meta_module: ['layout.glade']},
     data_files=[(
             'share/icons/hicolor/{0}x{0}/apps'.format(size),
             ['icons/{}/{}.png'.format(size, meta_app)])
