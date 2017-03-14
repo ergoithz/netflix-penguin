@@ -24,6 +24,7 @@ class AttrDefaultDict(collections.defaultdict):
 
 class Layout(AttrDefaultDict):
     def __init__(self, path):
+        self.path = path
         self.builder = Gtk.Builder.new_from_file(path)
         super(Layout, self).__init__()
 
@@ -33,18 +34,24 @@ class Layout(AttrDefaultDict):
     def __missing__(self, key):
         return self.builder.get_object(key)
 
+    def copy(self):
+        layout = self.__class__(self.path)
+        layout.update(self)
+        return layout
+
 
 class Application(Gtk.Application):
     last_valid_uri = None
     appid = 'org.%s.%s' % (meta.__org__, meta.__app__)
-    dirs = appdirs.AppDirs(meta.__app__, meta.__org__, meta.__version__)
+    dirs = appdirs.AppDirs(meta.__app__, meta.__org__)
     re_pipelight_so = re.compile(r'.*/libpipelight-silverlight[^/]+\.so$')
     re_accepted_uri = re.compile(
-        r'^https?://www.netflix.com/('
-        r'([a-z]{2}/)?([Ll]og|[Ss]ign)([Ii]n|[Oo]ut)|'
-        r'browse|watch|[Kk]ids|([Mm]anage)?[Pp]rofiles([Gg]ate)?'
-        r')(|\?.*|/.*)$'
+        r'^https?://www\.netflix\.com/('
+        r'([a-z]{2}/)?([Ll]og|[Ss]ign)([Ii]n|[Oo]ut)([Hh]elp)?|'
+        r'browse|watch|title|[Kk]ids|([Mm]anage)?[Pp]rofiles([Gg]ate)?'
+        r')(|(#|\?|/).*)$'
         )
+    re_frame_uri = re.compile(r'^https?://[^.]+\.facebook\.com/.*$')
     userAgent = (
         'Mozilla/5.0 (Windows NT 6.3; rv:36.0) '
         'Gecko/20100101 Firefox/36.04'
@@ -123,14 +130,17 @@ class Application(Gtk.Application):
             WebKit2.CookiePersistentStorage.SQLITE
             )
         settings = webview.get_settings()
-        settings.set_user_agent(self.userAgent)
-        settings.set_enable_java(False)
-        settings.set_enable_plugins(True)
-        settings.set_enable_fullscreen(True)
-        settings.set_enable_page_cache(True)
+        settings.set_properties({
+            'user-agent': self.userAgent,
+            'enable-java': False,
+            'enable-plugins': True,
+            'enable-fullscreen': True,
+            'enable-page-cache': True,
+            })
         webview.set_settings(settings)
         webview.set_property('visible', True)
         self.connect(webview, {
+            'decide-policy': self.on_decide_policy,
             'load-changed': self.on_load_change,
             'notify::title': self.on_title_change
             })
@@ -175,6 +185,59 @@ class Application(Gtk.Application):
             self.layout.hover_revealer.set_property('visible', fullscreen)
             self.layout.hover_revealer.set_reveal_child(not fullscreen)
 
+    def on_navigation(self, decision):
+        action = decision.get_navigation_action()
+        request = action.get_request()
+        uri = request.get_uri()
+        navtype = action.get_navigation_type()
+        if (
+          self.options.unrestricted or
+          self.re_accepted_uri.match(uri) or (
+              self.re_frame_uri.match(uri) and
+              navtype == WebKit2.NavigationType.OTHER
+              ) or
+          navtype in (
+              WebKit2.NavigationType.FORM_SUBMITTED,
+              WebKit2.NavigationType.FORM_RESUBMITTED,
+              WebKit2.NavigationType.RELOAD
+              )):
+            decision.use()
+            return True
+        if navtype == WebKit2.NavigationType.LINK_CLICKED:
+            Gtk.show_uri_on_window(self.layout.window, uri, Gdk.CURRENT_TIME)
+        decision.ignore()
+        return True
+
+    def on_new_window(self, decision):
+        # frame = decision.get_frame_name()
+        action = decision.get_navigation_action()
+        # navtype = action.get_navigation_type()
+        request = action.get_request()
+        uri = request.get_uri()
+        # method = request.get_http_method()
+        # headers= request.get_http_headers()
+        if self.re_login_urls.match(uri):
+            self.do_open_window(uri)
+        else:
+            Gtk.show_uri_on_window(
+                self.layout.window,
+                uri,
+                Gdk.CURRENT_TIME
+                )
+        decision.ignore()
+        return True
+
+    def on_response(self, decision):
+        return
+
+    def on_decide_policy(self, webview, decision, type):
+        if type == WebKit2.PolicyDecisionType.NAVIGATION_ACTION:
+            return self.on_navigation(decision)
+        if type == WebKit2.PolicyDecisionType.NEW_WINDOW_ACTION:
+            return self.on_new_window(decision)
+        if type == WebKit2.PolicyDecisionType.RESPONSE:
+            return self.on_response(decision)
+
     def on_window_key_press(self, source, event):
         if event.keyval in self.pressed_keys:
             return
@@ -202,15 +265,6 @@ class Application(Gtk.Application):
 
     def on_load_change(self, webview, event):
         if event == WebKit2.LoadEvent.STARTED:
-            uri = webview.get_uri()
-            if (
-              not self.options.unrestricted and
-              not self.re_accepted_uri.match(uri)
-              ):
-                webview.stop_loading()
-                Gtk.show_uri_on_window(
-                    self.layout.window, uri, Gdk.CURRENT_TIME)
-                return
             self.layout.reload_button.set_property('sensitive', False)
             self.layout.hover_reload_button.set_property('sensitive', False)
         elif event == WebKit2.LoadEvent.COMMITTED:
@@ -232,9 +286,14 @@ class Application(Gtk.Application):
         self.layout.headerbar.set_subtitle(title)
         self.layout.hover_headerbar.set_subtitle(title)
 
+    def do_open_window(self, uri):
+        layout = self.layout.copy()
+        layout.clear()
+        layout.popup.show()
+
     def do_startup(self):
         Gtk.Application.do_startup(self)
-        # NOTE: super(Application, self).do_startup() segfaults
+        # NOTE: super(Application, self).do_startup()  # segfaults
 
         # action = Gio.SimpleAction.new('about', None)
         # action.connect('activate', self.on_about)
