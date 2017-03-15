@@ -9,8 +9,6 @@ from .gi import Gtk, Gio, Gdk, WebKit2
 
 
 class Application(Gtk.Application):
-    last_valid_uri = None
-    appid = 'org.%s.%s' % (meta.__org__, meta.__app__)
     re_pipelight_so = re.compile(r'.*/libpipelight-silverlight[^/]+\.so$')
     re_accepted_uri = re.compile(
         r'^https?://www\.netflix\.com/('
@@ -35,7 +33,7 @@ class Application(Gtk.Application):
     def __init__(self, *args, **kwargs):
         super(Application, self).__init__(
             *args,
-            application_id=self.appid,
+            application_id='org.{}.{}'.format(meta.__org__, meta.__app__),
             flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
             **kwargs
             )
