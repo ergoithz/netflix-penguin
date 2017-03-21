@@ -16,19 +16,7 @@ class Application(Gtk.Application):
         r'browse|watch|title|[Kk]ids|([Mm]anage)?[Pp]rofiles([Gg]ate)?'
         r')(|(#|\?|/).*)$'
         )
-    re_frame_uri = re.compile(r'^https?://[^.]+\.facebook\.com/.*$')
-
-    @classmethod
-    def connect(cls, widget, *args, **kwargs):
-        signals = dict(*args, **kwargs)
-        if hasattr(widget, 'connect_signals'):
-            return widget.connect_signals(signals)
-        for name, callback in signals.items():
-            widget.connect(name, callback)
-        return signals
-
-    def init_config(self):
-        pass
+    re_login_uri = re.compile(r'^https?://[^.]+\.facebook\.com/.*$')
 
     def __init__(self, *args, **kwargs):
         super(Application, self).__init__(
@@ -44,7 +32,7 @@ class Application(Gtk.Application):
             )
         self.pressed_keys = set()
         self.fullscreen = False
-        self.connect(self.layout, {
+        self.layout.connect_signals({
             'back_button_click': lambda b: self.layout.webview.go_back(),
             'forw_button_click': lambda b: self.layout.webview.go_forward(),
             'reload_button_click': lambda b: self.layout.webview.reload(),
@@ -54,12 +42,11 @@ class Application(Gtk.Application):
             'window_key_press': self.on_window_key_press,
             'window_key_release': self.on_window_key_release,
             })
-        self.connect(self.layout.webview, {
+        self.layout.connect_webview_signals({
+            'create': self.on_create_request,
             'decide-policy': self.on_decide_policy,
-            'load-changed': self.on_load_change,
-            'notify::title': self.on_title_change
+            'load-changed': self.on_load_change
             })
-        self.init_config()
 
     def on_fullscreen(self, source):
         self.layout.window.fullscreen()
@@ -82,7 +69,7 @@ class Application(Gtk.Application):
         if (
           self.options.unrestricted or
           self.re_accepted_uri.match(uri) or (
-              self.re_frame_uri.match(uri) and
+              self.re_login_uri.match(uri) and
               navtype == WebKit2.NavigationType.OTHER
               ) or
           navtype in (
@@ -97,48 +84,35 @@ class Application(Gtk.Application):
         decision.ignore()
         return True
 
-    def on_new_window(self, decision):
-        # frame = decision.get_frame_name()
-        action = decision.get_navigation_action()
-        # navtype = action.get_navigation_type()
+    def on_create_request(self, webview, action):
         request = action.get_request()
         uri = request.get_uri()
-        # method = request.get_http_method()
-        # headers= request.get_http_headers()
-        if self.re_login_urls.match(uri):
-            self.do_open_window(uri)
-        else:
-            Gtk.show_uri_on_window(
-                self.layout.window,
-                uri,
-                Gdk.CURRENT_TIME
-                )
-        decision.ignore()
-        return True
-
-    def on_response(self, decision):
-        return
+        if self.re_login_uri.match(uri):
+            layout = self.layout.create_popup()
+            layout.popup.set_property('application', self)
+            layout.popup.show()
+            return layout.webview
 
     def on_decide_policy(self, webview, decision, type):
         if type == WebKit2.PolicyDecisionType.NAVIGATION_ACTION:
             return self.on_navigation(decision)
-        if type == WebKit2.PolicyDecisionType.NEW_WINDOW_ACTION:
-            return self.on_new_window(decision)
-        if type == WebKit2.PolicyDecisionType.RESPONSE:
-            return self.on_response(decision)
 
     def on_window_key_press(self, source, event):
         if event.keyval in self.pressed_keys:
-            return
+            return True
         self.pressed_keys.add(event.keyval)
         if self.fullscreen:
             if event.keyval in (Gdk.KEY_Escape, Gdk.KEY_F11):
                 self.layout.window.unfullscreen()
+                return True
             elif event.keyval == Gdk.KEY_Alt_L:
                 value = self.layout.hover_revealer.get_reveal_child()
                 self.layout.hover_revealer.set_reveal_child(not value)
+                return True
         elif event.keyval == Gdk.KEY_F11:
             self.layout.window.fullscreen()
+            return True
+        return False
 
     def on_window_key_release(self, source, event):
         self.pressed_keys.discard(event.keyval)
@@ -169,17 +143,6 @@ class Application(Gtk.Application):
             self.layout.reload_button.set_property('sensitive', True)
             self.layout.hover_reload_button.set_property('sensitive', True)
 
-    def on_title_change(self, webview, param):
-        title = webview.get_title()
-        title = None if title == self.layout.headerbar.get_title() else title
-        self.layout.headerbar.set_subtitle(title)
-        self.layout.hover_headerbar.set_subtitle(title)
-
-    def do_open_window(self, uri):
-        layout = self.layout.copy()
-        layout.clear()
-        layout.popup.show()
-
     def do_startup(self):
         Gtk.Application.do_startup(self)
         # NOTE: super(Application, self).do_startup()  # segfaults
@@ -196,6 +159,7 @@ class Application(Gtk.Application):
         # self.set_app_menu(self.layout.get_object('AppMenu'))
 
     def do_activate(self):
+        resources.create_dirs()
         self.layout.window.set_application(self)
         self.layout.window.present()
         self.layout.webview.load_uri('http://www.netflix.com/browse')
