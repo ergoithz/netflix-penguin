@@ -34,7 +34,6 @@ You can install Netflix Penguin system-wide, using pip, and a corresponding menu
 .. code-block:: sh
 
   sudo pip install netflix-penguin
-  sudo gtk-update-icon-cache -f /usr/share/icons/hicolor
 
 And can be uninstalled via:
 

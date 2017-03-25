@@ -3,7 +3,8 @@ import re
 
 from . import __meta__ as meta
 from . import resources
-from .layout import BrowserLayout
+from .utils import human_size
+from .layout import BrowserLayout, Layout
 from .collections import AttrDefaultDict
 from .gi import Gtk, Gio, Gdk, WebKit2
 
@@ -29,8 +30,9 @@ class Application(Gtk.Application):
         self.options = AttrDefaultDict(lambda: None)
         self.layout = BrowserLayout(
             resources.layout,
-            cookie_storage_path=resources.cookie_storage
+            cookie_storage_path=resources.storage
             )
+        self.menu = Layout(resources.menu)
         self.pressed_keys = set()
         self.fullscreen = False
         self.layout.connect({
@@ -39,8 +41,32 @@ class Application(Gtk.Application):
             'window.key-release-event': self.on_window_key_release,
             'webview.create': self.on_create_request,
             'webview.decide-policy': self.on_decide_policy,
-            'webview.load-changed': self.on_load_change
+            'webview.load-changed': self.on_load_change,
+            'about.delete-event': self.on_dialog_delete,
+            'preferences.delete-event': self.on_dialog_delete,
+            'about_close.clicked': self.on_dialog_close,
+            'preferences_close.clicked': self.on_dialog_close,
+            'clear_data.clicked': self.on_clear_data,
             })
+        self.layout.set({
+            'about.program-name': meta.__appname__,
+            'about.version': meta.__version__,
+            'about.authors': [meta.__author__],
+            })
+
+    def on_clear_data(self, widget):
+        context = self.layout.webview.get_context()
+        context.clear_cache()
+        manager = context.get_cookie_manager()
+        manager.delete_all_cookies()
+        self.update_preferences_size()
+
+    def on_dialog_close(self, widget):
+        widget.get_toplevel().hide()
+
+    def on_dialog_delete(self, source, param):
+        source.hide()
+        return True
 
     def on_window_state(self, source, event):
         fullscreen = Gdk.WindowState.FULLSCREEN & event.new_window_state
@@ -77,7 +103,7 @@ class Application(Gtk.Application):
         uri = request.get_uri()
         if self.re_popup_uri.match(uri):
             layout = self.layout.create_popup()
-            layout.popup.set_property('application', self)
+            layout.popup.set_application(self)
             layout.popup.show()
             return layout.webview
 
@@ -116,35 +142,55 @@ class Application(Gtk.Application):
 
     def on_load_change(self, webview, event):
         if event == WebKit2.LoadEvent.STARTED:
-            self.layout.reload_button.set_property('sensitive', False)
-            self.layout.hover_reload_button.set_property('sensitive', False)
+            self.layout.set({
+                'reload_button.sensitive': False,
+                'hover_reload_button.sensitive': False,
+                })
         elif event == WebKit2.LoadEvent.COMMITTED:
             cgb = self.layout.webview.can_go_back()
-            self.layout.back_button.set_property('sensitive', cgb)
-            self.layout.hover_back_button.set_property('sensitive', cgb)
             cgf = self.layout.webview.can_go_forward()
-            self.layout.forw_button.set_property('sensitive', cgf)
-            self.layout.hover_forw_button.set_property('sensitive', cgf)
+            self.layout.set({
+                'back_button.sensitive': cgb,
+                'hover_back_button.sensitive': cgb,
+                'forw_button.sensitive': cgf,
+                'hover_forw_button.sensitive': cgf,
+                })
         elif event == WebKit2.LoadEvent.REDIRECTED:
             pass
         elif event == WebKit2.LoadEvent.FINISHED:
-            self.layout.reload_button.set_property('sensitive', True)
-            self.layout.hover_reload_button.set_property('sensitive', True)
+            self.layout.set({
+                'reload_button.sensitive': True,
+                'hover_reload_button.sensitive': True,
+                })
+
+    def on_about(self, source, param):
+        self.layout.about.show()
+
+    def on_preferences(self, source, param):
+        self.update_preferences_size()
+        self.layout.preferences.show()
+
+    def update_preferences_size(self):
+        size = resources.count_cache_size()
+        self.layout.data_size_label.set_label(human_size(size))
 
     def do_startup(self):
         Gtk.Application.do_startup(self)
         # NOTE: super(Application, self).do_startup()  # segfaults
 
-        # action = Gio.SimpleAction.new('about', None)
-        # action.connect('activate', self.on_about)
-        # self.add_action(action)
+        action = Gio.SimpleAction.new('preferences', None)
+        action.connect('activate', self.on_preferences)
+        self.add_action(action)
 
-        # action = Gio.SimpleAction.new('quit', None)
-        # action.connect('activate', self.on_quit)
-        # self.add_action(action)
+        action = Gio.SimpleAction.new('about', None)
+        action.connect('activate', self.on_about)
+        self.add_action(action)
 
-        # builder = Gtk.Builder.new_from_string(MENU_XML, -1)
-        # self.set_app_menu(self.layout.get_object('AppMenu'))
+        action = Gio.SimpleAction.new('quit', None)
+        action.connect('activate', self.on_quit)
+        self.add_action(action)
+
+        self.set_app_menu(self.menu['menu'])
 
     def do_activate(self):
         resources.create_dirs()

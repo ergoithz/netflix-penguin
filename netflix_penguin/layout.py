@@ -14,6 +14,12 @@ class Layout(AttrDefaultDict):
             widget, signal = spec.split('.', 1)
             self[widget].connect(signal, handler)
 
+    def set(self, properties):
+        for spec, value in properties.items():
+            widget, prop = spec.split('.', 1)
+            setter = 'set_%s' % prop.replace('-', '_')
+            getattr(self[widget], setter)(value)
+
     def __missing__(self, key):
         return self.builder.get_object(key)
 
@@ -54,10 +60,10 @@ class PopUpLayout(Layout):
         if event == WebKit2.LoadEvent.STARTED:
             self.popup_reload_button.set_property('sensitive', False)
         elif event == WebKit2.LoadEvent.COMMITTED:
-            cgb = self.webview.can_go_back()
-            self.popup_back_button.set_property('sensitive', cgb)
-            cgf = self.webview.can_go_forward()
-            self.popup_forw_button.set_property('sensitive', cgf)
+            self.layout.set({
+                'popup_back_button.sensitive': self.webview.can_go_back(),
+                'popup_forw_button.sensitive': self.webview.can_go_forward(),
+                })
         elif event == WebKit2.LoadEvent.REDIRECTED:
             pass
         elif event == WebKit2.LoadEvent.FINISHED:
