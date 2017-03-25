@@ -16,7 +16,8 @@ class Application(Gtk.Application):
         r'browse|watch|title|[Kk]ids|([Mm]anage)?[Pp]rofiles([Gg]ate)?'
         r')(|(#|\?|/).*)$'
         )
-    re_login_uri = re.compile(r'^https?://[^.]+\.facebook\.com/.*$')
+    re_popup_uri = re.compile(r'^https?://[^.]+\.facebook\.com/.*$')
+    home_uri = 'http://www.netflix.com/browse'
 
     def __init__(self, *args, **kwargs):
         super(Application, self).__init__(
@@ -32,27 +33,14 @@ class Application(Gtk.Application):
             )
         self.pressed_keys = set()
         self.fullscreen = False
-        self.layout.connect_signals({
-            'back_button_click': lambda b: self.layout.webview.go_back(),
-            'forw_button_click': lambda b: self.layout.webview.go_forward(),
-            'reload_button_click': lambda b: self.layout.webview.reload(),
-            'fullscreen_button_click': self.on_fullscreen,
-            'unfullscreen_button_click': self.on_unfullscreen,
-            'window_state': self.on_window_state,
-            'window_key_press': self.on_window_key_press,
-            'window_key_release': self.on_window_key_release,
+        self.layout.connect({
+            'window.window-state-event': self.on_window_state,
+            'window.key-press-event': self.on_window_key_press,
+            'window.key-release-event': self.on_window_key_release,
+            'webview.create': self.on_create_request,
+            'webview.decide-policy': self.on_decide_policy,
+            'webview.load-changed': self.on_load_change
             })
-        self.layout.connect_webview_signals({
-            'create': self.on_create_request,
-            'decide-policy': self.on_decide_policy,
-            'load-changed': self.on_load_change
-            })
-
-    def on_fullscreen(self, source):
-        self.layout.window.fullscreen()
-
-    def on_unfullscreen(self, source):
-        self.layout.window.unfullscreen()
 
     def on_window_state(self, source, event):
         fullscreen = Gdk.WindowState.FULLSCREEN & event.new_window_state
@@ -69,7 +57,7 @@ class Application(Gtk.Application):
         if (
           self.options.unrestricted or
           self.re_accepted_uri.match(uri) or (
-              self.re_login_uri.match(uri) and
+              self.re_popup_uri.match(uri) and
               navtype == WebKit2.NavigationType.OTHER
               ) or
           navtype in (
@@ -87,7 +75,7 @@ class Application(Gtk.Application):
     def on_create_request(self, webview, action):
         request = action.get_request()
         uri = request.get_uri()
-        if self.re_login_uri.match(uri):
+        if self.re_popup_uri.match(uri):
             layout = self.layout.create_popup()
             layout.popup.set_property('application', self)
             layout.popup.show()
@@ -162,7 +150,7 @@ class Application(Gtk.Application):
         resources.create_dirs()
         self.layout.window.set_application(self)
         self.layout.window.present()
-        self.layout.webview.load_uri('http://www.netflix.com/browse')
+        self.layout.webview.load_uri(self.home_uri)
 
     def do_command_line(self, command_line):
         options = command_line.get_options_dict()

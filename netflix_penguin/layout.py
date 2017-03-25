@@ -9,43 +9,46 @@ class Layout(AttrDefaultDict):
         self.builder = Gtk.Builder.new_from_file(path)
         super(Layout, self).__init__()
 
-    def connect_signals(self, signals):
-        self.builder.connect_signals(signals)
+    def connect(self, signals):
+        for spec, handler in signals.items():
+            widget, signal = spec.split('.', 1)
+            self[widget].connect(signal, handler)
 
     def __missing__(self, key):
         return self.builder.get_object(key)
 
 
-class WebviewLayout(Layout):
-    def connect_webview_signals(self, signals):
-        for name, callback in signals.items():
-            self.webview.connect(name, callback)
-        return signals
-
-
-class PopUpLayout(WebviewLayout):
+class PopUpLayout(Layout):
     def __init__(self, path, parent):
         super(PopUpLayout, self).__init__(path)
 
         self.popup.set_properties({
             'visible': True,
-            'transient-for': parent.get_toplevel()
             })
+        self.popup.set_transient_for(parent.get_toplevel())
 
         webview = WebKit2.WebView.new_with_related_view(parent)
 
         self.webview = webview
         self.popup.add(webview)
-        self.connect_webview_signals({
-            'ready-to-show': lambda source: source.show(),
-            'load-changed': self.on_load_change,
-            'notify::title': self.on_title_change,
-            'close': lambda source: self.popup.destroy()
+        self.connect({
+            'popup_back_button.clicked': lambda b: self.webview.go_back(),
+            'popup_forw_button.clicked': lambda b: self.webview.go_forward(),
+            'popup_reload_button.clicked': lambda b: self.webview.reload(),
+            'webview.ready-to-show': lambda source: source.show(),
+            'webview.load-changed': self.on_load_change,
+            'webview.notify::title': self.on_title_change,
+            'webview.notify::uri': self.on_uri_change,
+            'webview.close': lambda source: self.popup.destroy(),
             })
 
-    def on_title_change(self, webview):
+    def on_title_change(self, webview, param):
         title = webview.get_title()
-        self.headerbar.set_subtitle(title)
+        self.popup_header.set_title(title)
+
+    def on_uri_change(self, webview, param):
+        uri = webview.get_uri()
+        self.popup_header.set_subtitle(uri)
 
     def on_load_change(self, webview, event):
         if event == WebKit2.LoadEvent.STARTED:
@@ -61,7 +64,7 @@ class PopUpLayout(WebviewLayout):
             self.popup_reload_button.set_property('sensitive', True)
 
 
-class BrowserLayout(WebviewLayout):
+class BrowserLayout(Layout):
     popup_layout_class = PopUpLayout
     userAgent = (
         'Mozilla/5.0 (Windows NT 6.3; rv:36.0) '
@@ -141,8 +144,17 @@ class BrowserLayout(WebviewLayout):
         webview.show()
         self.webview = webview
         self.main.pack_start(webview, True, True, 0)
-        self.connect_webview_signals({
-            'notify::title': self.on_title_change,
+        w = self.window
+        self.connect({
+            'back_button.clicked': lambda b: webview.go_back(),
+            'hover_back_button.clicked': lambda b: webview.go_back(),
+            'forw_button.clicked': lambda b: webview.go_forward(),
+            'hover_forw_button.clicked': lambda b: webview.go_forward(),
+            'reload_button.clicked': lambda b: webview.reload(),
+            'hover_reload_button.clicked': lambda b: webview.reload(),
+            'fullscreen_button.clicked': lambda b: w.fullscreen(),
+            'hover_unfullscreen_button.clicked': lambda b: w.unfullscreen(),
+            'webview.notify::title': self.on_title_change,
             })
 
     def on_title_change(self, webview, param):

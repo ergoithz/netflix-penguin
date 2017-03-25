@@ -10,9 +10,6 @@
     <property name="default_height">720</property>
     <property name="icon_name">netflix-penguin</property>
     <property name="gravity">center</property>
-    <signal name="key-press-event" handler="window_key_press" swapped="no"/>
-    <signal name="key-release-event" handler="window_key_release" after="yes" swapped="no"/>
-    <signal name="window-state-event" handler="window_state" swapped="no"/>
     <child>
       <object class="GtkBox" id="main">
         <property name="visible">True</property>
@@ -42,7 +39,6 @@
                         <property name="receives_default">True</property>
                         <property name="tooltip_text" translatable="yes">Back</property>
                         <property name="always_show_image">True</property>
-                        <signal name="clicked" handler="back_button_click" swapped="no"/>
                         <child>
                           <object class="GtkImage">
                             <property name="visible">True</property>
@@ -64,7 +60,6 @@
                         <property name="can_focus">True</property>
                         <property name="receives_default">True</property>
                         <property name="tooltip_text" translatable="yes">Forward</property>
-                        <signal name="clicked" handler="forw_button_click" swapped="no"/>
                         <child>
                           <object class="GtkImage">
                             <property name="visible">True</property>
@@ -85,10 +80,10 @@
                 <child>
                   <object class="GtkButton" id="hover_reload_button">
                     <property name="visible">True</property>
+                    <property name="sensitive">False</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
                     <property name="tooltip_text" translatable="yes">Reload</property>
-                    <signal name="clicked" handler="reload_button_click" swapped="no"/>
                     <child>
                       <object class="GtkImage">
                         <property name="visible">True</property>
@@ -108,7 +103,6 @@
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
                     <property name="tooltip_text" translatable="yes">Toggle fullscreen</property>
-                    <signal name="clicked" handler="unfullscreen_button_click" swapped="no"/>
                     <child>
                       <object class="GtkImage">
                         <property name="visible">True</property>
@@ -251,7 +245,6 @@ See &lt;a href="https://github.com/ergoithz/netflix-penguin/wiki/Troubleshoot#si
                 <property name="receives_default">True</property>
                 <property name="tooltip_text" translatable="yes">Back</property>
                 <property name="always_show_image">True</property>
-                <signal name="clicked" handler="back_button_click" swapped="no"/>
                 <child>
                   <object class="GtkImage">
                     <property name="visible">True</property>
@@ -294,10 +287,10 @@ See &lt;a href="https://github.com/ergoithz/netflix-penguin/wiki/Troubleshoot#si
         <child>
           <object class="GtkButton" id="reload_button">
             <property name="visible">True</property>
+            <property name="sensitive">False</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
             <property name="tooltip_text" translatable="yes">Reload</property>
-            <signal name="clicked" handler="reload_button_click" swapped="no"/>
             <child>
               <object class="GtkImage">
                 <property name="visible">True</property>
@@ -317,7 +310,6 @@ See &lt;a href="https://github.com/ergoithz/netflix-penguin/wiki/Troubleshoot#si
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
             <property name="tooltip_text" translatable="yes">Toggle fullscreen</property>
-            <signal name="clicked" handler="fullscreen_button_click" swapped="no"/>
             <child>
               <object class="GtkImage">
                 <property name="visible">True</property>
@@ -355,12 +347,13 @@ See &lt;a href="https://github.com/ergoithz/netflix-penguin/wiki/Troubleshoot#si
       <placeholder/>
     </child>
     <child type="titlebar">
-      <object class="GtkHeaderBar">
+      <object class="GtkHeaderBar" id="popup_header">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="show_close_button">True</property>
         <child>
           <object class="GtkBox">
+            <property name="visible">True</property>
             <property name="can_focus">False</property>
             <child>
               <object class="GtkButton" id="popup_back_button">
@@ -410,6 +403,8 @@ See &lt;a href="https://github.com/ergoithz/netflix-penguin/wiki/Troubleshoot#si
         </child>
         <child>
           <object class="GtkButton" id="popup_reload_button">
+            <property name="visible">True</property>
+            <property name="sensitive">False</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
             <property name="tooltip_text" translatable="yes">Reload</property>
