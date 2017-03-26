@@ -10,7 +10,6 @@ from .gi import Gtk, Gio, Gdk, WebKit2
 
 
 class Application(Gtk.Application):
-    re_pipelight_so = re.compile(r'.*/libpipelight-silverlight[^/]+\.so$')
     re_accepted_uri = re.compile(
         r'^https?://www\.netflix\.com/('
         r'([a-z]{2}/)?([Ll]og|[Ss]ign)([Ii]n|[Oo]ut)([Hh]elp)?|'
@@ -130,15 +129,6 @@ class Application(Gtk.Application):
 
     def on_window_key_release(self, source, event):
         self.pressed_keys.discard(event.keyval)
-
-    def on_plugins(self, source, res):
-        pipelight = [
-            plugin
-            for plugin in source.get_plugins_finish(res)
-            if self.re_pipelight_so.match(plugin.get_path())
-            ]
-        if not pipelight:
-            self.layout.nosilverlight_info.set_property('visible', True)
 
     def on_load_change(self, webview, event):
         if event == WebKit2.LoadEvent.STARTED:

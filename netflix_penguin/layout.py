@@ -1,6 +1,9 @@
 
+import re
+
 from .collections import AttrDefaultDict
 from .gi import Gtk, WebKit2
+from .utils import gtk_set
 
 
 class Layout(AttrDefaultDict):
@@ -15,10 +18,7 @@ class Layout(AttrDefaultDict):
             self[widget].connect(signal, handler)
 
     def set(self, properties):
-        for spec, value in properties.items():
-            widget, prop = spec.split('.', 1)
-            setter = 'set_%s' % prop.replace('-', '_')
-            getattr(self[widget], setter)(value)
+        gtk_set(self, properties)
 
     def __missing__(self, key):
         return self.builder.get_object(key)
@@ -71,6 +71,7 @@ class PopUpLayout(Layout):
 
 
 class BrowserLayout(Layout):
+    re_pipelight_so = re.compile(r'.*/libpipelight-silverlight[^/]+\.so$')
     popup_layout_class = PopUpLayout
     userAgent = (
         'Mozilla/5.0 (Windows NT 6.3; rv:36.0) '
@@ -82,10 +83,8 @@ class BrowserLayout(Layout):
             const navigator = window.navigator;
             let modifiedNavigator;
             if ('userAgent' in Navigator.prototype) {
-                // Chrome 43+
                 modifiedNavigator = Navigator.prototype;
             } else {
-                // Chrome 42-
                 modifiedNavigator = Object.create(navigator);
                 Object.defineProperty(window, 'navigator', {
                     value: modifiedNavigator,
@@ -117,7 +116,7 @@ class BrowserLayout(Layout):
         })();
         ''' % {
             'userAgent': userAgent,
-            'appVersion': userAgent.split('/', 1)[1],
+            'appVersion': version,
             'platform': platform
             }
 
@@ -139,7 +138,7 @@ class BrowserLayout(Layout):
             WebKit2.CookiePersistentStorage.SQLITE
             )
         settings = webview.get_settings()
-        settings.set_properties({
+        gtk_set(settings, {
             'user-agent': self.userAgent,
             'enable-java': False,
             'enable-plugins': True,
@@ -162,6 +161,15 @@ class BrowserLayout(Layout):
             'hover_unfullscreen_button.clicked': lambda b: w.unfullscreen(),
             'webview.notify::title': self.on_title_change,
             })
+
+    def on_plugins(self, source, res):
+        pipelight = [
+            plugin
+            for plugin in source.get_plugins_finish(res)
+            if self.re_pipelight_so.match(plugin.get_path())
+            ]
+        if not pipelight:
+            self.nosilverlight_info.set_property('visible', True)
 
     def on_title_change(self, webview, param):
         title = webview.get_title()
