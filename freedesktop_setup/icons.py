@@ -75,7 +75,12 @@ class update_icons(Command):
                 )
             if permission or self.force:
                 log.info('updating %s' % cachefile)
-                err = subprocess.call(['gtk-update-icon-cache', '-f', path])
+                try:
+                    err = subprocess.call(
+                        ['gtk-update-icon-cache', '-f', path]
+                        )
+                except BaseException as e:
+                    err = e
                 if err:
                     log.error('gtk-update-icon-cache call failed')
             elif self.force:
