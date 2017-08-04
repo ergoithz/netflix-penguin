@@ -1,9 +1,9 @@
 
-from .collections import AttrDefaultDict
+from .collections import AttrDict
 from .gi import Gtk, WebKit2
 
 
-class Layout(AttrDefaultDict):
+class Layout(AttrDict):
     def __init__(self, path):
         self.path = path
         self.builder = Gtk.Builder.new_from_file(path)
@@ -129,7 +129,7 @@ class BrowserLayout(Layout):
             self.script,
             WebKit2.UserContentInjectedFrames.ALL_FRAMES,
             WebKit2.UserScriptInjectionTime.START
-        ))
+            ))
         webview = WebKit2.WebView.new_with_user_content_manager(manager)
         context = webview.get_context()
         context.get_plugins(None, self.on_plugins)
@@ -146,6 +146,9 @@ class BrowserLayout(Layout):
             'enable-fullscreen': True,
             'enable-page-cache': True,
             })
+        settings.set_hardware_acceleration_policy(
+            WebKit2.HardwareAccelerationPolicy.NEVER
+            )
         webview.set_settings(settings)
         webview.show()
         self.webview = webview
